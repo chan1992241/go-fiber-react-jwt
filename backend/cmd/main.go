@@ -32,8 +32,10 @@ func main() {
 	})
 	app.Post("/register", controller.Register)
 	app.Post("/login", controller.Login)
-	// app.Post("/register", func(c *fiber.Ctx) error {
-	// 	return c.SendString("Hello Post")
-	// })
+	app.Get("/users", controller.VerifyToken, controller.VerifyAdmin, controller.GetUser)
+	app.Get("/logout", controller.VerifyToken, controller.Logout)
+	app.Get("/refresh", controller.RefreshToken)
+	app.Post("/add", controller.VerifyToken, controller.VerifyAdmin, controller.AddUser)
+	app.Delete("/delete", controller.VerifyToken, controller.VerifyAdmin, controller.DeleteUser)
 	app.Listen(":3000")
 }
