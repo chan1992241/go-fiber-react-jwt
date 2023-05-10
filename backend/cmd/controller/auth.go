@@ -53,7 +53,7 @@ func Login(c *fiber.Ctx) error {
 	claims := jwt.MapClaims{
 		"userId": user.ID,
 		//set one hour expiration
-		"exp": time.Now().Add(time.Hour * 1).Unix(),
+		"exp": time.Now().Add(time.Second * 10).Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	t, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
