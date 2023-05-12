@@ -2,7 +2,7 @@ package config
 
 import "github.com/gofiber/fiber/v2"
 
-var allowOrigin []string = []string{"'http://localhost:5173'"}
+var allowOrigin []string = []string{"http://localhost:5173"}
 
 type Config struct {
 	Next             func(c *fiber.Ctx) bool
@@ -15,5 +15,7 @@ type Config struct {
 }
 
 var CorsConfig = Config{
-	AllowOrigins: allowOrigin[0],
+	AllowOrigins:     allowOrigin[0],
+	AllowCredentials: true,
+	AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
 }

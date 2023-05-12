@@ -21,12 +21,13 @@ func Connect() *mongo.Client {
 	if err != nil {
 		panic(err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // context.Background() create empty context
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second) // context.Background() create empty context
 	defer cancel()
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(os.Getenv("MONGO_URI")))
 	if err != nil {
 		panic(err)
 	}
+	println("Connected to MongoDB!")
 	return client
 }
 
