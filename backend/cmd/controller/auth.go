@@ -21,6 +21,17 @@ func Register(c *fiber.Ctx) error {
 	if err := c.BodyParser(&data); err != nil {
 		return c.SendStatus(fiber.StatusInternalServerError)
 	}
+	// Check data[username] and data[password] is empty
+	if data["username"] == "" || data["password"] == "" || data["role"] == "" {
+		return c.SendStatus(fiber.StatusBadRequest)
+	}
+	// Check if user already exists
+	var user entity.User
+	filter := bson.D{{Key: "username", Value: data["username"]}}
+	var _ = entity.UserCollection.FindOne(c.Context(), filter).Decode(&user)
+	if user != (entity.User{}) {
+		return c.SendStatus(fiber.StatusConflict)
+	}
 	hashedPassword, _ = bcrypt.GenerateFromPassword([]byte(data["password"]), 14)
 	var result, err = entity.UserCollection.InsertOne(c.Context(), entity.User{
 		ID:       primitive.NewObjectID(),
