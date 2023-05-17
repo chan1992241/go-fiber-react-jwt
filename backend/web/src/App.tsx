@@ -5,6 +5,7 @@ import Login from "./features/auth/Login";
 import RequireAuth from "./features/auth/RequireAuth";
 import Welcome from "./features/auth/Welcome";
 import UsersList from "./features/users/UsersList";
+import Register from "./features/auth/Register";
 
 function App() {
     return (
@@ -13,6 +14,7 @@ function App() {
                 {/* public routes */}
                 <Route index element={<Public />} />
                 <Route path="login" element={<Login />} />
+                <Route path="register" element={<Register />} />
 
                 {/* protected routes */}
                 <Route element={<RequireAuth />}>

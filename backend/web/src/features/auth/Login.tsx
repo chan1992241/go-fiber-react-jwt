@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import React from "react";
 import { useDispatch } from "react-redux";
 import { setCredentials } from "./authSlice";
@@ -28,8 +28,11 @@ const Login = () => {
         e.preventDefault();
 
         try {
-            const userData = await login({ user, pwd }).unwrap();
-            dispatch(setCredentials({ token: userData.accessToken, user }));
+            const userData = await login({
+                username: user,
+                password: pwd,
+            }).unwrap();
+            dispatch(setCredentials({ token: userData.token, user }));
             setUser("");
             setPwd("");
             navigate("/welcome");
@@ -90,6 +93,7 @@ const Login = () => {
                 />
                 <button>Sign In</button>
             </form>
+            <Link to="/">Back</Link>
         </section>
     );
 

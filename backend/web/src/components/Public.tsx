@@ -25,6 +25,8 @@ const Public = () => {
             </main>
             <footer>
                 <Link to="/login">Employee Login</Link>
+                <br />
+                <Link to="/register">Register</Link>
             </footer>
         </section>
     );
