@@ -3,7 +3,7 @@ package controller
 import (
 	"chan1992241/backend/cmd/model/entity"
 	"context"
-	"fmt"
+	"errors"
 	"os"
 	"time"
 
@@ -64,7 +64,7 @@ func Login(c *fiber.Ctx) error {
 	claims := jwt.MapClaims{
 		"userId": user.ID,
 		//set one hour expiration
-		"exp": time.Now().Add(time.Second * 10).Unix(),
+		"exp": time.Now().Add(time.Second * 3).Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	t, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
@@ -94,18 +94,54 @@ func Login(c *fiber.Ctx) error {
 }
 
 func RefreshToken(c *fiber.Ctx) error {
-	var data map[string]string
-	if err := c.BodyParser(&data); err != nil {
-		panic(err)
-	}
-	var user entity.User
-	filter := bson.D{{Key: "username", Value: data["username"]}}
-	err := entity.UserCollection.FindOne(c.Context(), filter).Decode(&user)
+	cookie := c.Cookies("token")
+	claims := jwt.MapClaims{}
+	_, err := jwt.ParseWithClaims(cookie, claims, func(token *jwt.Token) (interface{}, error) {
+		return []byte(os.Getenv("JWT_SECRET")), nil
+	})
 	if err != nil {
-		c.Status(fiber.StatusForbidden)
-		return c.SendString("User not found")
+		if errors.Is(err, jwt.ErrSignatureInvalid) {
+			c.Status(fiber.StatusUnauthorized)
+			return c.SendString("Unauthorized")
+		}
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			userId := claims["userId"].(string)
+			var user entity.User
+			objectId, err := primitive.ObjectIDFromHex(userId)
+			if err != nil {
+				return c.SendStatus(fiber.StatusInternalServerError)
+			}
+			filter := bson.D{{Key: "_id", Value: objectId}}
+			_ = entity.UserCollection.FindOne(c.Context(), filter).Decode(&user)
+			refreshToken := user.RefreshToken
+			claims := jwt.MapClaims{}
+			_, err = jwt.ParseWithClaims(refreshToken, claims, func(token *jwt.Token) (interface{}, error) {
+				return []byte(os.Getenv("JWT_SECRET")), nil
+			})
+			if err != nil {
+				return c.SendStatus(fiber.StatusUnauthorized)
+			}
+			// Generate new access token
+			newAccessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+				"userId": user.ID,
+				"exp":    time.Now().Add(time.Second * 3).Unix(),
+			})
+			signedAccessToken, err := newAccessToken.SignedString([]byte(os.Getenv("JWT_SECRET")))
+			if err != nil {
+				return c.SendStatus(fiber.StatusInternalServerError)
+			}
+			cookie := new(fiber.Cookie)
+			cookie.Name = "token"
+			cookie.Value = signedAccessToken
+			cookie.Expires = time.Now().Add(1 * time.Hour)
+			c.Cookie(cookie)
+			return c.JSON(fiber.Map{"token": signedAccessToken})
+		}
+		c.Status(fiber.StatusBadRequest)
+		return c.SendString("Bad Request")
 	}
-	return c.SendString("Hello, World!")
+	c.Status(fiber.StatusUnauthorized)
+	return c.SendString("Unauthorized")
 }
 
 func VerifyToken(c *fiber.Ctx) error {
@@ -116,7 +152,7 @@ func VerifyToken(c *fiber.Ctx) error {
 	})
 	if err != nil {
 		c.Status(fiber.StatusForbidden)
-		return c.SendString("Unauthenticated")
+		return c.JSON(fiber.Map{"message": "Unauthenticated"})
 	}
 	return c.Next()
 }
@@ -135,7 +171,7 @@ func VerifyAdmin(c *fiber.Ctx) error {
 	var user entity.User
 	objectId, err := primitive.ObjectIDFromHex(claims["userId"].(string))
 	if err != nil {
-		fmt.Println("Invalid id")
+		return c.SendStatus(fiber.StatusInternalServerError)
 	}
 	filter := bson.D{{Key: "_id", Value: objectId}}
 	err = entity.UserCollection.FindOne(c.Context(), filter).Decode(&user)
@@ -165,7 +201,10 @@ func GetUser(c *fiber.Ctx) error {
 
 func Logout(c *fiber.Ctx) error {
 	c.ClearCookie("token")
-	return c.SendStatus(fiber.StatusOK)
+	c.SendStatus(fiber.StatusOK)
+	return c.JSON(fiber.Map{
+		"message": "success",
+	})
 }
 
 func AddUser(c *fiber.Ctx) error {
@@ -193,7 +232,7 @@ func DeleteUser(c *fiber.Ctx) error {
 	}
 	objectId, err := primitive.ObjectIDFromHex(data["id"])
 	if err != nil {
-		fmt.Println("Invalid id")
+		return c.SendStatus(fiber.StatusInternalServerError)
 	}
 	filter := bson.D{{Key: "_id", Value: objectId}}
 	_, err = entity.UserCollection.DeleteOne(c.Context(), filter)
